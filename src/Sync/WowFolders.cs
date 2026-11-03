@@ -34,7 +34,15 @@ public static class WowFolders
     public static string? Normalize(string? picked)
     {
         if (string.IsNullOrWhiteSpace(picked)) return null;
-        var full = Path.GetFullPath(picked.Trim().TrimEnd('\\', '/'));
+        string full;
+        try
+        {
+            full = Path.GetFullPath(picked.Trim().TrimEnd('\\', '/'));
+        }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
         if (IsRetail(full)) return full;
         var inside = Path.Combine(full, "_retail_");
         return IsRetail(inside) ? inside : null;
@@ -57,7 +65,8 @@ public static class WowFolders
     public static IReadOnlyList<GameAccount> ListAccounts(string retail)
     {
         var root = new DirectoryInfo(Path.Combine(retail, "WTF", "Account"));
-        if (!root.Exists) return [];
+        // A link anywhere from the drive down to WTF\Account would lead outside the game folder.
+        if (!root.Exists || IsUnderLink(root.FullName)) return [];
         return RealFolders(root)
             .Where(account => account.Name != "SavedVariables")
             .Select(account => new GameAccount(
@@ -73,7 +82,8 @@ public static class WowFolders
     }
 
     private static IEnumerable<DirectoryInfo> RealFolders(DirectoryInfo parent) =>
-        parent.EnumerateDirectories().Where(d => d.LinkTarget is null);
+        // Default options skip folders Windows won't let us read, instead of throwing.
+        parent.EnumerateDirectories("*", new EnumerationOptions()).Where(d => d.LinkTarget is null);
 
     private static bool IsUnderLink(string folder)
     {

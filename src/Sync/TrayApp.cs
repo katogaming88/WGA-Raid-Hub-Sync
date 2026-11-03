@@ -22,7 +22,10 @@ public sealed class TrayApp : ApplicationContext
             e.Cancel = false;
         };
 
-        settings.WowFolder = WowFolders.Normalize(settings.WowFolder) ?? WowFolders.FindRetail();
+        var folder = WowFolders.Normalize(settings.WowFolder) ?? WowFolders.FindRetail();
+        // Ticks belong to the folder they were made in.
+        if (folder != settings.WowFolder) settings.Accounts.Clear();
+        settings.WowFolder = folder;
         settings.Save(Settings.DefaultPath);
         if (settings.WowFolder is null)
             tray.ShowBalloonTip(10_000, "WGA Raid Hub Sync",
@@ -43,10 +46,22 @@ public sealed class TrayApp : ApplicationContext
         if (settings.WowFolder is not null)
         {
             menu.Items.Add(new ToolStripSeparator());
-            var accounts = WowFolders.ListAccounts(settings.WowFolder);
-            menu.Items.Add(new ToolStripMenuItem(accounts.Count == 0
-                ? "No game accounts yet: log into the game once"
-                : "Sync these game accounts:") { Enabled = false });
+            IReadOnlyList<GameAccount> accounts;
+            string heading;
+            try
+            {
+                accounts = WowFolders.ListAccounts(settings.WowFolder);
+                heading = accounts.Count == 0
+                    ? "No game accounts yet: log into the game once"
+                    : "Sync these game accounts:";
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // Keep the menu usable so the officer can choose another folder.
+                accounts = [];
+                heading = "Can't read this folder's game accounts";
+            }
+            menu.Items.Add(new ToolStripMenuItem(heading) { Enabled = false });
             foreach (var account in accounts)
                 menu.Items.Add(AccountItem(account));
         }

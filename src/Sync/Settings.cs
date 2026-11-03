@@ -16,7 +16,9 @@ public sealed class Settings
     {
         try
         {
-            return JsonSerializer.Deserialize<Settings>(File.ReadAllText(path)) ?? new();
+            var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(path)) ?? new();
+            settings.Accounts ??= [];
+            return settings;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
         {

@@ -78,12 +78,31 @@ public sealed class WowFoldersTests : IDisposable
     public void SettingsRoundTripAndSurviveABadFile()
     {
         var path = Path.Combine(root, "s", "settings.json");
-        new Settings { WowFolder = @"C:x", Accounts = ["KATO#1"] }.Save(path);
+        new Settings { WowFolder = @"C:\x", Accounts = ["KATO#1"] }.Save(path);
         var loaded = Settings.Load(path);
-        Assert.Equal(@"C:x", loaded.WowFolder);
+        Assert.Equal(@"C:\x", loaded.WowFolder);
         Assert.Equal(["KATO#1"], loaded.Accounts);
+
+        File.WriteAllText(path, """{ "WowFolder": null, "Accounts": null }""");
+        Assert.Empty(Settings.Load(path).Accounts);
 
         File.WriteAllText(path, "{ not json");
         Assert.Null(Settings.Load(path).WowFolder);
+    }
+
+    [Fact]
+    public void RefusesAMalformedPath() => Assert.Null(WowFolders.Normalize("C:\\bad\0path"));
+
+    [Fact]
+    public void ListsNothingThroughALinkedWtfFolder()
+    {
+        var retail = MakeRetail();
+        Directory.CreateDirectory(Path.Combine(root, "elsewhere", "Account", "OTHER"));
+        // Directory symlinks need admin or Developer Mode; CI runners have it.
+        try { Directory.CreateSymbolicLink(Path.Combine(retail, "WTF"), Path.Combine(root, "elsewhere")); }
+        catch (IOException) { return; }
+        catch (UnauthorizedAccessException) { return; }
+
+        Assert.Empty(WowFolders.ListAccounts(retail));
     }
 }
