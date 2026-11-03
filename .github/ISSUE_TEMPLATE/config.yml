@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: The Raid Hub site
+    url: https://github.com/katogaming88/WGA-Raid-Hub/issues
+    about: Problems with the website itself belong on the site's tracker.
+  - name: The in-game addon
+    url: https://github.com/katogaming88/RCLootCouncil_PriorityLoot/issues
+    about: Problems inside the game belong on the addon's tracker.

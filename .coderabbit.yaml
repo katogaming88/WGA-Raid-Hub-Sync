@@ -1,0 +1,24 @@
+# CodeRabbit: an outside review on every pull request.
+language: en-US
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  sequence_diagrams: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: '**/*.cs'
+      instructions: |
+        A Windows tray app run by guild officers. Write findings in plain
+        language: what an officer would see go wrong, then the fix. Skip
+        style nits. Check especially:
+        - The device key is only ever stored with Windows encryption
+          (ProtectedData, CurrentUser) and never logged or written in plain text.
+        - Files are only written inside the WoW folders the officer picked;
+          paths are resolved and checked, and links out of them are refused.
+        - The local 127.0.0.1 listener accepts only the expected one-time
+          callback and checks the challenge.
+        - Anything written into Interface/AddOns is ASCII only.
