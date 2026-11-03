@@ -24,8 +24,22 @@ guildmates.
 
 ## Status
 
-Not built yet. Linking to a Raid Hub account waits on the site's link page,
-which comes after the new site goes live.
+Early. Sync runs in the tray, finds your World of Warcraft folder (or lets
+you choose it), and lists each game account with its characters so you can
+tick which ones to sync. Linking to a Raid Hub account waits on the site's
+link page, which comes after the new site goes live.
+
+## Building
+
+Needs Windows and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+
+```
+dotnet build
+dotnet test
+dotnet run --project src/Sync
+```
+
+Sync keeps what you picked in `%LOCALAPPDATA%\WGA Raid Hub Sync\settings.json`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for branches, pull requests and
 releases.
