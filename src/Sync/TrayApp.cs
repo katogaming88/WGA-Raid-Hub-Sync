@@ -27,7 +27,7 @@ public sealed class TrayApp : ApplicationContext
         };
 
         folder = WowFolders.Normalize(settings.WowFolder) ?? WowFolders.FindRetail();
-        if (folder is not null && folder != settings.WowFolder)
+        if (folder is not null && !SameFolder(folder, settings.WowFolder))
         {
             // Ticks belong to the folder they were made in.
             settings.Accounts.Clear();
@@ -39,6 +39,10 @@ public sealed class TrayApp : ApplicationContext
             tray.ShowBalloonTip(10_000, "WGA Raid Hub Sync",
                 "Couldn't find World of Warcraft. Right-click this icon to choose its folder.", ToolTipIcon.Info);
     }
+
+    // Windows paths ignore letter case: D:\WoW and d:\wow are one folder.
+    private static bool SameFolder(string? a, string? b) =>
+        string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
     private void Save()
     {
@@ -131,7 +135,7 @@ public sealed class TrayApp : ApplicationContext
                 "WGA Raid Hub Sync", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
-        if (retail != settings.WowFolder) settings.Accounts.Clear();
+        if (!SameFolder(retail, settings.WowFolder)) settings.Accounts.Clear();
         settings.WowFolder = folder = retail;
         Save();
     }

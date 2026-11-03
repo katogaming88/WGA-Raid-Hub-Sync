@@ -30,14 +30,18 @@ public sealed class Settings
     /// <summary>False when the file can't be written (disk full, folder blocked).</summary>
     public bool TrySave(string path)
     {
+        // Written beside the real file and swapped in, so a failed write leaves the old one whole.
+        var temp = path + ".tmp";
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(temp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            File.Move(temp, path, overwrite: true);
             return true;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
+            try { File.Delete(temp); } catch (Exception) { /* best effort */ }
             return false;
         }
     }
