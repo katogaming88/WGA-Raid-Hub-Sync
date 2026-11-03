@@ -6,6 +6,10 @@ public sealed class TrayApp : ApplicationContext
     private readonly Settings settings = Settings.Load(Settings.DefaultPath);
     private readonly NotifyIcon tray;
 
+    /// <summary>The game folder in use this session; null while the saved one isn't there.</summary>
+    private string? folder;
+    private bool warnedSaveFailed;
+
     public TrayApp()
     {
         // ponytail: stock icon until the logo is drawn (logo directions are on the site repo).
@@ -22,14 +26,26 @@ public sealed class TrayApp : ApplicationContext
             e.Cancel = false;
         };
 
-        var folder = WowFolders.Normalize(settings.WowFolder) ?? WowFolders.FindRetail();
-        // Ticks belong to the folder they were made in.
-        if (folder != settings.WowFolder) settings.Accounts.Clear();
-        settings.WowFolder = folder;
-        settings.Save(Settings.DefaultPath);
-        if (settings.WowFolder is null)
+        folder = WowFolders.Normalize(settings.WowFolder) ?? WowFolders.FindRetail();
+        if (folder is not null && folder != settings.WowFolder)
+        {
+            // Ticks belong to the folder they were made in.
+            settings.Accounts.Clear();
+            settings.WowFolder = folder;
+            Save();
+        }
+        // With nothing found, the saved folder and ticks are kept: the drive may just not be connected yet.
+        if (folder is null)
             tray.ShowBalloonTip(10_000, "WGA Raid Hub Sync",
                 "Couldn't find World of Warcraft. Right-click this icon to choose its folder.", ToolTipIcon.Info);
+    }
+
+    private void Save()
+    {
+        if (settings.TrySave(Settings.DefaultPath) || warnedSaveFailed) return;
+        warnedSaveFailed = true;
+        tray.ShowBalloonTip(10_000, "WGA Raid Hub Sync",
+            "Couldn't save your choices. They work until Sync closes, then need picking again.", ToolTipIcon.Warning);
     }
 
     private void BuildMenu(ContextMenuStrip menu)
@@ -38,19 +54,20 @@ public sealed class TrayApp : ApplicationContext
         menu.Items.Add(new ToolStripMenuItem("Not linked to Raid Hub yet") { Enabled = false });
         menu.Items.Add(new ToolStripSeparator());
 
-        menu.Items.Add(new ToolStripMenuItem(settings.WowFolder is null
-            ? "World of Warcraft folder not found"
-            : $"Game folder: {settings.WowFolder}") { Enabled = false });
+        menu.Items.Add(new ToolStripMenuItem(
+            folder is not null ? $"Game folder: {folder}"
+            : settings.WowFolder is not null ? $"Game folder not available: {settings.WowFolder}"
+            : "World of Warcraft folder not found") { Enabled = false });
         menu.Items.Add("Choose game folder...", null, (_, _) => ChooseFolder());
 
-        if (settings.WowFolder is not null)
+        if (folder is not null)
         {
             menu.Items.Add(new ToolStripSeparator());
             IReadOnlyList<GameAccount> accounts;
             string heading;
             try
             {
-                accounts = WowFolders.ListAccounts(settings.WowFolder);
+                accounts = WowFolders.ListAccounts(folder);
                 heading = accounts.Count == 0
                     ? "No game accounts yet: log into the game once"
                     : "Sync these game accounts:";
@@ -81,7 +98,7 @@ public sealed class TrayApp : ApplicationContext
         {
             settings.Accounts.Remove(account.Name);
             if (item.Checked) settings.Accounts.Add(account.Name);
-            settings.Save(Settings.DefaultPath);
+            Save();
         };
         return item;
     }
@@ -101,7 +118,7 @@ public sealed class TrayApp : ApplicationContext
         {
             Description = "Choose your World of Warcraft folder",
             UseDescriptionForTitle = true,
-            InitialDirectory = settings.WowFolder ?? "",
+            InitialDirectory = folder ?? "",
         };
         if (dialog.ShowDialog() != DialogResult.OK) return;
 
@@ -115,8 +132,8 @@ public sealed class TrayApp : ApplicationContext
             return;
         }
         if (retail != settings.WowFolder) settings.Accounts.Clear();
-        settings.WowFolder = retail;
-        settings.Save(Settings.DefaultPath);
+        settings.WowFolder = folder = retail;
+        Save();
     }
 
     protected override void ExitThreadCore()

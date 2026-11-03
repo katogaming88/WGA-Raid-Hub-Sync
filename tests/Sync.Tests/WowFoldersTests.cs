@@ -78,7 +78,7 @@ public sealed class WowFoldersTests : IDisposable
     public void SettingsRoundTripAndSurviveABadFile()
     {
         var path = Path.Combine(root, "s", "settings.json");
-        new Settings { WowFolder = @"C:\x", Accounts = ["KATO#1"] }.Save(path);
+        new Settings { WowFolder = @"C:\x", Accounts = ["KATO#1"] }.TrySave(path);
         var loaded = Settings.Load(path);
         Assert.Equal(@"C:\x", loaded.WowFolder);
         Assert.Equal(["KATO#1"], loaded.Accounts);
@@ -88,6 +88,15 @@ public sealed class WowFoldersTests : IDisposable
 
         File.WriteAllText(path, "{ not json");
         Assert.Null(Settings.Load(path).WowFolder);
+    }
+
+    [Fact]
+    public void SaveReportsFailureInsteadOfThrowing()
+    {
+        // A file where the settings folder should be: the write can't happen.
+        var blocker = Path.Combine(root, "blocked");
+        File.WriteAllText(blocker, "");
+        Assert.False(new Settings().TrySave(Path.Combine(blocker, "settings.json")));
     }
 
     [Fact]

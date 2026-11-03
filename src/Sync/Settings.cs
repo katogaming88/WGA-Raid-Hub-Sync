@@ -27,9 +27,18 @@ public sealed class Settings
         }
     }
 
-    public void Save(string path)
+    /// <summary>False when the file can't be written (disk full, folder blocked).</summary>
+    public bool TrySave(string path)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 }
