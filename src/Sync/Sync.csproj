@@ -7,15 +7,15 @@
     <AssemblyName>WGA Raid Hub Sync</AssemblyName>
     <RootNamespace>Sync</RootNamespace>
     <!-- Set by release-please on each release; never edit by hand. -->
-    <Version>0.0.0</Version>
+    <Version>0.1.0</Version>
     <!-- The Go Again ring, packed from the logo masters' PNGs: the exe in Explorer and the taskbar. -->
     <ApplicationIcon>Sync.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Sync.Tests" />
-    <None Include="Fonts\*" CopyToOutputDirectory="PreserveNewest" />
-    <EmbeddedResource Include="Sync.ico" LogicalName="Sync.ico" />
+    <InternalsVisibleTo Include="Sync.Tests"/>
+    <None Include="Fonts\*" CopyToOutputDirectory="PreserveNewest"/>
+    <EmbeddedResource Include="Sync.ico" LogicalName="Sync.ico"/>
   </ItemGroup>
 
 </Project>
