@@ -86,6 +86,14 @@ public sealed class WowFoldersTests : IDisposable
     }
 
     [Fact]
+    public void TheWindowUsesTheSitesFont()
+    {
+        // Falling back to Segoe UI is silent, so a missing or renamed font file would go unnoticed.
+        Assert.Equal("Onest", Theme.Body.Name);
+        Assert.Equal("Onest SemiBold", Theme.Title.Name);
+    }
+
+    [Fact]
     public void NeedsALookNamesWhatIsMissing()
     {
         Assert.Single(TrayApp.NeedsALook(@"C:\wow", @"C:\wow", accountsTicked: 1));

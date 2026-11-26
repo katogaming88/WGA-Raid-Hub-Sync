@@ -1,3 +1,4 @@
+using System.Drawing.Text;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
@@ -30,12 +31,37 @@ public sealed record Theme(
 
     private static Color Hex(string hex) => ColorTranslator.FromHtml(hex);
 
-    // ponytail: Segoe UI, the site's own fallback for Onest. Embedding Onest needs a TTF in the repo.
-    public static Font Body { get; } = new("Segoe UI", 10f);
-    public static Font Strong { get; } = new("Segoe UI Semibold", 10f);
-    public static Font Title { get; } = new("Segoe UI Semibold", 15f);
-    public static Font Stat { get; } = new("Segoe UI Semibold", 18f);
+    // The site's font, shipped beside the exe (Fonts\, SIL Open Font License). Static Regular and SemiBold
+    // files because GDI can't pick weights out of the variable font. Segoe UI, the site's own fallback,
+    // if they can't be loaded.
+    private static readonly PrivateFontCollection fonts = LoadFonts();
+    public static Font Body { get; } = Make("Onest", "Segoe UI", 10f);
+    public static Font Strong { get; } = Make("Onest SemiBold", "Segoe UI Semibold", 10f);
+    public static Font Title { get; } = Make("Onest SemiBold", "Segoe UI Semibold", 15f);
+    public static Font Stat { get; } = Make("Onest SemiBold", "Segoe UI Semibold", 18f);
     public static Font Icons { get; } = new("Segoe MDL2 Assets", 12f);
+
+    private static PrivateFontCollection LoadFonts()
+    {
+        var collection = new PrivateFontCollection();
+        foreach (var file in new[] { "Onest-Regular.ttf", "Onest-SemiBold.ttf" })
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "Fonts", file);
+            if (!File.Exists(path)) continue;
+            collection.AddFontFile(path);
+            // WinForms labels draw with GDI, which only sees fonts added this way too.
+            _ = AddFontResourceEx(path, FrPrivate, IntPtr.Zero);
+        }
+        return collection;
+    }
+
+    private static Font Make(string family, string fallback, float size) =>
+        fonts.Families.FirstOrDefault(f => f.Name == family) is { } found ? new(found, size) : new(fallback, size);
+
+    private const int FrPrivate = 0x10;
+
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)]
+    private static extern int AddFontResourceEx(string path, int flags, IntPtr reserved);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
