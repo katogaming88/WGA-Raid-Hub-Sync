@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Started by release-please.yml on its release pull request (see there).
+  workflow_dispatch:
 
 jobs:
   build:
