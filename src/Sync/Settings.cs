@@ -7,6 +7,10 @@ public sealed class Settings
 {
     public string? WowFolder { get; set; }
     public List<string> Accounts { get; set; } = [];
+    /// <summary>Off by default: Sync is a window first. On, it starts quietly with only the tray icon.</summary>
+    public bool StartInTray { get; set; }
+    /// <summary>The "still running in the tray" note shows once, the first time the window closes.</summary>
+    public bool TrayNoteShown { get; set; }
 
     public static string DefaultPath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
