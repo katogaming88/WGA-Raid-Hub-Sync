@@ -1,14 +1,27 @@
+using Microsoft.Win32;
+
 namespace Sync;
 
-/// <summary>The tray icon and its right-click menu. There is no main window.</summary>
+/// <summary>
+/// Runs for as long as Sync does: the tray icon, the officer's picks, and the window when it's open.
+/// Closing the window leaves this running; Quit is the only way out.
+/// </summary>
 public sealed class TrayApp : ApplicationContext
 {
-    private readonly Settings settings = Settings.Load(Settings.DefaultPath);
+    public const string SiteUrl = "https://katogaming88.github.io/WGA-Raid-Hub/";
+    private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string RunValue = "WGA Raid Hub Sync";
+
+    public Settings Settings { get; } = Settings.Load(Settings.DefaultPath);
     private readonly NotifyIcon tray;
+    private MainWindow? window;
 
     /// <summary>The game folder in use this session; null while the saved one isn't there.</summary>
-    private string? folder;
+    public string? Folder { get; private set; }
     private bool warnedSaveFailed;
+
+    /// <summary>A pick changed: the window redraws what it shows.</summary>
+    public event Action? Changed;
 
     public TrayApp()
     {
@@ -25,123 +38,145 @@ public sealed class TrayApp : ApplicationContext
             BuildMenu(tray.ContextMenuStrip);
             e.Cancel = false;
         };
+        tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) OpenWindow(); };
 
-        folder = WowFolders.Normalize(settings.WowFolder) ?? WowFolders.FindRetail();
-        if (folder is not null && !SameFolder(folder, settings.WowFolder))
+        Folder = WowFolders.Normalize(Settings.WowFolder) ?? WowFolders.FindRetail();
+        if (Folder is not null && !SameFolder(Folder, Settings.WowFolder))
         {
             // Ticks belong to the folder they were made in.
-            settings.Accounts.Clear();
-            settings.WowFolder = folder;
+            Settings.Accounts.Clear();
+            Settings.WowFolder = Folder;
             Save();
         }
+
         // With nothing found, the saved folder and ticks are kept: the drive may just not be connected yet.
-        if (folder is null)
-            tray.ShowBalloonTip(10_000, "WGA Raid Hub Sync",
-                "Couldn't find World of Warcraft. Right-click this icon to choose its folder.", ToolTipIcon.Info);
+        if (Settings.OpenWindowOnStart) OpenWindow();
+        else if (Folder is null)
+            Note("Couldn't find World of Warcraft. Click this icon to open Sync and choose its folder.");
     }
 
     // Windows paths ignore letter case: D:\WoW and d:\wow are one folder.
     private static bool SameFolder(string? a, string? b) =>
         string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
-    private void Save()
+    private void Note(string text, ToolTipIcon icon = ToolTipIcon.Info) =>
+        tray.ShowBalloonTip(10_000, "WGA Raid Hub Sync", text, icon);
+
+    public void Save()
     {
-        if (settings.TrySave(Settings.DefaultPath) || warnedSaveFailed) return;
+        Changed?.Invoke();
+        if (Settings.TrySave(Settings.DefaultPath) || warnedSaveFailed) return;
         warnedSaveFailed = true;
-        tray.ShowBalloonTip(10_000, "WGA Raid Hub Sync",
-            "Couldn't save your choices. They work until Sync closes, then need picking again.", ToolTipIcon.Warning);
+        Note("Couldn't save your choices. They work until Sync closes, then need picking again.", ToolTipIcon.Warning);
+    }
+
+    /// <summary>What still stands between the officer and a working sync, most important first.</summary>
+    internal static List<string> NeedsALook(string? folder, string? savedFolder, int accountsTicked)
+    {
+        // Linking waits on the site's link page (sync #1); every install shows it until then.
+        List<string> items = ["Not linked to Raid Hub yet. Linking opens once the new site is live."];
+        if (folder is null)
+            items.Add(savedFolder is not null
+                ? $"The game folder isn't there: {savedFolder}. Connect its drive, or choose another."
+                : "World of Warcraft wasn't found. Choose its folder under Game accounts.");
+        else if (accountsTicked == 0)
+            items.Add("No game accounts ticked. Tick the ones to sync under Game accounts.");
+        return items;
+    }
+
+    /// <summary>The one-line status in the tray menu and at the top of Overview.</summary>
+    public string Status =>
+        Folder is null ? "Game folder not found" : "Not linked to Raid Hub yet";
+
+    /// <summary>The game accounts in the folder, or null when it can't be read.</summary>
+    public IReadOnlyList<GameAccount>? Accounts()
+    {
+        if (Folder is null) return [];
+        try { return WowFolders.ListAccounts(Folder); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+    }
+
+    public void SetAccount(string name, bool ticked)
+    {
+        Settings.Accounts.Remove(name);
+        if (ticked) Settings.Accounts.Add(name);
+        Save();
+    }
+
+    public void OpenWindow()
+    {
+        if (window is { IsDisposed: false })
+        {
+            if (window.WindowState == FormWindowState.Minimized) window.WindowState = FormWindowState.Normal;
+            window.Activate();
+            return;
+        }
+        window = new MainWindow(this);
+        window.FormClosed += (_, _) =>
+        {
+            window = null;
+            if (Settings.TrayNoteShown) return;
+            Settings.TrayNoteShown = true;
+            Save();
+            Note("Sync is still running. Open it again from this icon (it may be under the ^ arrow).");
+        };
+        window.Show();
     }
 
     private void BuildMenu(ContextMenuStrip menu)
     {
         menu.Items.Clear();
-        menu.Items.Add(new ToolStripMenuItem("Not linked to Raid Hub yet") { Enabled = false });
-        menu.Items.Add(new ToolStripSeparator());
-
-        menu.Items.Add(new ToolStripMenuItem(
-            folder is not null ? $"Game folder: {folder}"
-            : settings.WowFolder is not null ? $"Game folder not available: {settings.WowFolder}"
-            : "World of Warcraft folder not found") { Enabled = false });
-        menu.Items.Add("Choose game folder...", null, (_, _) => ChooseFolder());
-
-        if (folder is not null)
-        {
-            menu.Items.Add(new ToolStripSeparator());
-            IReadOnlyList<GameAccount> accounts;
-            string heading;
-            try
-            {
-                accounts = WowFolders.ListAccounts(folder);
-                heading = accounts.Count == 0
-                    ? "No game accounts yet: log into the game once"
-                    : "Sync these game accounts:";
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                // Keep the menu usable so the officer can choose another folder.
-                accounts = [];
-                heading = "Can't read this folder's game accounts";
-            }
-            menu.Items.Add(new ToolStripMenuItem(heading) { Enabled = false });
-            foreach (var account in accounts)
-                menu.Items.Add(AccountItem(account));
-        }
-
+        var open = new ToolStripMenuItem("Open Sync", null, (_, _) => OpenWindow());
+        open.Font = new Font(open.Font, FontStyle.Bold);
+        menu.Items.Add(open);
+        menu.Items.Add(new ToolStripMenuItem(Status) { Enabled = false });
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => ExitThread());
     }
 
-    private ToolStripMenuItem AccountItem(GameAccount account)
-    {
-        var item = new ToolStripMenuItem(Describe(account))
-        {
-            Checked = settings.Accounts.Contains(account.Name),
-            CheckOnClick = true,
-        };
-        item.CheckedChanged += (_, _) =>
-        {
-            settings.Accounts.Remove(account.Name);
-            if (item.Checked) settings.Accounts.Add(account.Name);
-            Save();
-        };
-        return item;
-    }
-
-    /// <summary>"ACCOUNT1  (Katorri-Stormrage, Alt-Stormrage, +3 more)", so it's clear which account is which.</summary>
-    internal static string Describe(GameAccount account)
-    {
-        const int shown = 3;
-        var names = account.Characters.Take(shown).ToList();
-        if (account.Characters.Count > shown) names.Add($"+{account.Characters.Count - shown} more");
-        return names.Count == 0 ? account.Name : $"{account.Name}  ({string.Join(", ", names)})";
-    }
-
-    private void ChooseFolder()
+    public void ChooseFolder(IWin32Window owner)
     {
         using var dialog = new FolderBrowserDialog
         {
             Description = "Choose your World of Warcraft folder",
             UseDescriptionForTitle = true,
-            InitialDirectory = folder ?? "",
+            InitialDirectory = Folder ?? "",
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(owner) != DialogResult.OK) return;
 
         var retail = WowFolders.Normalize(dialog.SelectedPath);
         if (retail is null)
         {
-            MessageBox.Show(
+            MessageBox.Show(owner,
                 "That isn't a World of Warcraft folder. Choose the folder with Wow.exe in it " +
                 "(usually World of Warcraft\\_retail_). Shortcuts and links to other folders aren't accepted.",
                 "WGA Raid Hub Sync", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
-        if (!SameFolder(retail, settings.WowFolder)) settings.Accounts.Clear();
-        settings.WowFolder = folder = retail;
+        if (!SameFolder(retail, Settings.WowFolder)) Settings.Accounts.Clear();
+        Settings.WowFolder = Folder = retail;
         Save();
+    }
+
+    /// <summary>Whether Windows starts Sync at sign-in (the current user's Run key).</summary>
+    public static bool StartsWithWindows
+    {
+        get
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(RunKey);
+            return key?.GetValue(RunValue) is string;
+        }
+        set
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(RunKey);
+            if (value) key.SetValue(RunValue, $"\"{Application.ExecutablePath}\"");
+            else key.DeleteValue(RunValue, throwOnMissingValue: false);
+        }
     }
 
     protected override void ExitThreadCore()
     {
+        window?.Dispose();
         tray.Visible = false;
         tray.Dispose();
         base.ExitThreadCore();

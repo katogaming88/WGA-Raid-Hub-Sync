@@ -70,8 +70,28 @@ public sealed class WowFoldersTests : IDisposable
     public void DescribeShowsThreeCharactersThenACount()
     {
         var account = new GameAccount("KATO#1", "", ["A-R", "B-R", "C-R", "D-R", "E-R"]);
-        Assert.Equal("KATO#1  (A-R, B-R, C-R, +2 more)", TrayApp.Describe(account));
-        Assert.Equal("EMPTY", TrayApp.Describe(new GameAccount("EMPTY", "", [])));
+        Assert.Equal("KATO#1  (A-R, B-R, C-R, +2 more)", MainWindow.Describe(account));
+        Assert.Equal("EMPTY", MainWindow.Describe(new GameAccount("EMPTY", "", [])));
+    }
+
+    [Fact]
+    public void AnOlderSettingsFileStillOpensTheWindow()
+    {
+        // Files saved before the window existed have neither field.
+        var path = Path.Combine(root, "old.json");
+        File.WriteAllText(path, """{ "WowFolder": "C:\\x", "Accounts": [] }""");
+        var loaded = Settings.Load(path);
+        Assert.True(loaded.OpenWindowOnStart);
+        Assert.False(loaded.TrayNoteShown);
+    }
+
+    [Fact]
+    public void NeedsALookNamesWhatIsMissing()
+    {
+        Assert.Single(TrayApp.NeedsALook(@"C:\wow", @"C:\wow", accountsTicked: 1));
+        Assert.Contains("No game accounts ticked", TrayApp.NeedsALook(@"C:\wow", @"C:\wow", 0)[1]);
+        Assert.Contains("wasn't found", TrayApp.NeedsALook(null, null, 0)[1]);
+        Assert.Contains(@"isn't there: D:\wow", TrayApp.NeedsALook(null, @"D:\wow", 3)[1]);
     }
 
     [Fact]

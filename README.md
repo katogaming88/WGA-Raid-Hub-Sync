@@ -24,10 +24,13 @@ guildmates.
 
 ## Status
 
-Early. Sync runs in the tray, finds your World of Warcraft folder (or lets
-you choose it), and lists each game account with its characters so you can
-tick which ones to sync. Linking to a Raid Hub account waits on the site's
-link page, which comes after the new site goes live.
+Early. Sync opens a window (Overview, Teams, Game accounts, Uploads,
+Activity) and keeps running in the tray when you close it; Quit from the tray
+icon closes it for good. It finds your World of Warcraft folder (or lets you
+choose it), and lists each game account with its characters so you can tick
+which ones to sync. The Settings button sets whether Sync starts with Windows
+and whether the window opens when it starts. Linking to a Raid Hub account
+waits on the site's link page, which comes after the new site goes live.
 
 ## Building
 
