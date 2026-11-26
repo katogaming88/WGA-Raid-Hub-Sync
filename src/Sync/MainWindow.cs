@@ -25,7 +25,7 @@ public sealed class MainWindow : Form
     {
         this.app = app;
         Text = "WGA Raid Hub Sync";
-        Icon = SystemIcons.Application;
+        Icon = Theme.Logo(SystemInformation.IconSize);
         Font = Theme.Body;
         AutoScaleMode = AutoScaleMode.Dpi;
         ClientSize = new Size(860, 560);

@@ -41,6 +41,13 @@ public sealed record Theme(
     public static Font Stat { get; } = Make("Onest SemiBold", "Segoe UI Semibold", 18f);
     public static Font Icons { get; } = new("Segoe MDL2 Assets", 12f);
 
+    /// <summary>The app's logo at the size asked for; the .ico holds 16 to 256 px.</summary>
+    public static Icon Logo(Size size)
+    {
+        using var stream = typeof(Theme).Assembly.GetManifestResourceStream("Sync.ico")!;
+        return new Icon(stream, size);
+    }
+
     private static PrivateFontCollection LoadFonts()
     {
         var collection = new PrivateFontCollection();

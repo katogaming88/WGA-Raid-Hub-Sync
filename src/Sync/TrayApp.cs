@@ -25,10 +25,9 @@ public sealed class TrayApp : ApplicationContext
 
     public TrayApp()
     {
-        // ponytail: stock icon until the logo is drawn (logo directions are on the site repo).
         tray = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = Theme.Logo(SystemInformation.SmallIconSize),
             Text = "WGA Raid Hub Sync",
             ContextMenuStrip = new ContextMenuStrip(),
             Visible = true,

@@ -94,6 +94,15 @@ public sealed class WowFoldersTests : IDisposable
     }
 
     [Fact]
+    public void TheLogoHasTheTrayAndWindowSizes()
+    {
+        using var small = Theme.Logo(new System.Drawing.Size(16, 16));
+        using var large = Theme.Logo(new System.Drawing.Size(32, 32));
+        Assert.Equal(16, small.Width);
+        Assert.Equal(32, large.Width);
+    }
+
+    [Fact]
     public void NeedsALookNamesWhatIsMissing()
     {
         Assert.Single(TrayApp.NeedsALook(@"C:\wow", @"C:\wow", accountsTicked: 1));

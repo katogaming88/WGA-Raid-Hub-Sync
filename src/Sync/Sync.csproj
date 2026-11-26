@@ -6,11 +6,14 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>WGA Raid Hub Sync</AssemblyName>
     <RootNamespace>Sync</RootNamespace>
+    <!-- The Go Again ring, from the site's apple-touch-icon.png: the exe in Explorer and the taskbar. -->
+    <ApplicationIcon>Sync.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="Sync.Tests" />
     <None Include="Fonts\*" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Sync.ico" LogicalName="Sync.ico" />
   </ItemGroup>
 
 </Project>
