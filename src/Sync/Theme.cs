@@ -36,10 +36,11 @@ public sealed record Theme(
     // if they can't be loaded.
     private static readonly PrivateFontCollection fonts = LoadFonts();
     public static Font Body { get; } = Make("Onest", "Segoe UI", 10f);
+    /// <summary>The site's smallest size (--text-xs, 12 px), for small print like the version.</summary>
+    public static Font Small { get; } = Make("Onest", "Segoe UI", 9f);
     public static Font Strong { get; } = Make("Onest SemiBold", "Segoe UI Semibold", 10f);
     public static Font Title { get; } = Make("Onest SemiBold", "Segoe UI Semibold", 15f);
     public static Font Stat { get; } = Make("Onest SemiBold", "Segoe UI Semibold", 18f);
-    public static Font Icons { get; } = new("Segoe MDL2 Assets", 12f);
 
     /// <summary>The app's logo at the size asked for; the .ico holds 16 to 256 px.</summary>
     public static Icon Logo(Size size)
@@ -79,24 +80,5 @@ public sealed record Theme(
         const int useImmersiveDarkMode = 20;
         var on = Dark ? 1 : 0;
         _ = DwmSetWindowAttribute(hwnd, useImmersiveDarkMode, ref on, sizeof(int));
-    }
-
-    /// <summary>Menus in the window's colors, not the stock light grey.</summary>
-    public ToolStripRenderer MenuRenderer() => new ToolStripProfessionalRenderer(new MenuColors(this));
-
-    private sealed class MenuColors(Theme t) : ProfessionalColorTable
-    {
-        public override Color ToolStripDropDownBackground => t.Panel;
-        public override Color ImageMarginGradientBegin => t.Panel;
-        public override Color ImageMarginGradientMiddle => t.Panel;
-        public override Color ImageMarginGradientEnd => t.Panel;
-        public override Color MenuBorder => t.BorderStrong;
-        public override Color MenuItemBorder => t.NavSelected;
-        public override Color MenuItemSelected => t.NavSelected;
-        public override Color SeparatorDark => t.Border;
-        public override Color SeparatorLight => t.Border;
-        public override Color CheckBackground => t.NavSelected;
-        public override Color CheckSelectedBackground => t.NavSelected;
-        public override Color CheckPressedBackground => t.NavSelected;
     }
 }

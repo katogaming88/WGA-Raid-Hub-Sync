@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace Sync;
 
 /// <summary>
-/// Sync's window: a sidebar of pages and a Settings button. Built fresh each time it opens,
+/// Sync's window: a sidebar of pages, with Settings at its foot. Built fresh each time it opens,
 /// so it always shows the current picks and the current Windows theme.
 /// </summary>
 public sealed class MainWindow : Form
@@ -19,11 +19,15 @@ public sealed class MainWindow : Form
         Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false,
         AutoScroll = true, Padding = new Padding(24, 8, 24, 24),
     };
+    private readonly Button settingsNav;
+    /// <summary>"1.0.0", without the commit hash .NET appends.</summary>
+    private static string Version => Application.ProductVersion.Split('+')[0];
     private string page = Pages[0];
 
     public MainWindow(TrayApp app)
     {
         this.app = app;
+        settingsNav = NavButton("Settings");
         Text = "WGA Raid Hub Sync";
         Icon = Theme.Logo(SystemInformation.IconSize);
         Font = Theme.Body;
@@ -55,23 +59,22 @@ public sealed class MainWindow : Form
             AutoSize = true, Margin = new Padding(0, 3, 0, 0),
         });
         sidebar.Controls.Add(brand);
+        // Settings sits alone at the foot of the sidebar, apart from the pages about syncing.
+        settingsNav.Dock = DockStyle.Bottom;
+        sidebar.Controls.Add(settingsNav);
+        // Added after Settings so it docks below it, keeping Settings off the window edge.
+        sidebar.Controls.Add(new Label
+        {
+            Text = $"Version {Version}", Font = Theme.Small, ForeColor = t.TextMuted, Dock = DockStyle.Bottom,
+            Height = 36, Padding = new Padding(16, 0, 0, 0), TextAlign = ContentAlignment.MiddleLeft,
+        });
         layout.Controls.Add(sidebar, 0, 0);
         layout.Controls.Add(Rule(vertical: true), 1, 0);
 
-        var settings = new Button
-        {
-            Text = "", Font = Theme.Icons, AccessibleName = "Settings",
-            Size = new Size(40, 36), Anchor = AnchorStyles.Top | AnchorStyles.Right,
-        };
-        Plain(settings, border: false);
-        new ToolTip().SetToolTip(settings, "Settings");
-        settings.Click += (_, _) => SettingsMenu().Show(settings, new Point(settings.Width, settings.Height), ToolStripDropDownDirection.BelowLeft);
-
-        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 64, ColumnCount = 2, Padding = new Padding(24, 16, 16, 0) };
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        header.Controls.Add(title, 0, 0);
-        header.Controls.Add(settings, 1, 0);
+        var header = new Panel { Dock = DockStyle.Top, Height = 64, Padding = new Padding(24, 16, 16, 0) };
+        title.Dock = DockStyle.Fill; // Docked, so the header's padding lines it up with the page below.
+        title.Padding = new Padding(3, 3, 0, 0);
+        header.Controls.Add(title);
 
         var main = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty };
         main.Controls.Add(body);
@@ -93,6 +96,7 @@ public sealed class MainWindow : Form
     {
         SuspendLayout();
         foreach (Button button in nav.Controls) StyleNav(button);
+        StyleNav(settingsNav);
 
         title.Text = page;
         // The rebuilt page gets keyboard focus back on the same checkbox or button.
@@ -107,6 +111,7 @@ public sealed class MainWindow : Form
             case "Game accounts": GameAccounts(); break;
             case "Uploads": Line("Each upload shows here with when it last ran and whether it worked: the addon's saved data, the loot history and the priority data for the game."); break;
             case "Activity": Line("Nothing yet. Every sync Sync runs is listed here, newest first."); break;
+            case "Settings": SettingsPage(); break;
         }
         body.Controls.OfType<ButtonBase>().FirstOrDefault(c => c.Text == focused)?.Focus();
         ResumeLayout();
@@ -118,6 +123,7 @@ public sealed class MainWindow : Form
         var button = new Button
         {
             Text = name, TextAlign = ContentAlignment.MiddleLeft, Width = 200, Height = 36,
+            ImageAlign = ContentAlignment.MiddleLeft, TextImageRelation = TextImageRelation.ImageBeforeText,
             Margin = Padding.Empty, Padding = new Padding(12, 0, 0, 0),
             FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand,
         };
@@ -134,6 +140,31 @@ public sealed class MainWindow : Form
         button.BackColor = selected ? t.NavSelected : t.Sidebar;
         button.ForeColor = selected ? t.Text : t.TextMuted;
         button.AccessibleDescription = selected ? "Current page" : null;
+        var old = button.Image;
+        button.Image = NavIcon(NavGlyphs[button.Text], button.ForeColor);
+        old?.Dispose();
+    }
+
+    // Segoe MDL2 Assets ships with Windows 10 and 11: Home, People, Game, Upload, History, Settings.
+    private static readonly Dictionary<string, char> NavGlyphs = new()
+    {
+        ["Overview"] = '', ["Teams"] = '', ["Game accounts"] = '',
+        ["Uploads"] = '', ["Activity"] = '', ["Settings"] = '',
+    };
+
+    /// <summary>The page's icon in its text color, sized for the screen so it stays sharp when scaled.</summary>
+    private Bitmap NavIcon(char glyph, Color color)
+    {
+        var size = LogicalToDeviceUnits(24);
+        var bitmap = new Bitmap(size, size);
+        using var g = Graphics.FromImage(bitmap);
+        // Plain anti-aliasing: ClearType on a see-through bitmap leaves dark fringes.
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+        using var font = new Font("Segoe MDL2 Assets", LogicalToDeviceUnits(16), GraphicsUnit.Pixel);
+        using var brush = new SolidBrush(color);
+        using var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+        g.DrawString(glyph.ToString(), font, brush, new RectangleF(0, 0, size, size), center);
+        return bitmap;
     }
 
     private void Overview()
@@ -204,36 +235,42 @@ public sealed class MainWindow : Form
         return names.Count == 0 ? account.Name : $"{account.Name}  ({string.Join(", ", names)})";
     }
 
-    private ContextMenuStrip SettingsMenu()
+    // The game folder is chosen on Game accounts. Check for updates and What's new come with the
+    // installer (sync #5); Unlink with linking (sync #1).
+    private void SettingsPage()
     {
-        var menu = new ContextMenuStrip { Renderer = t.MenuRenderer(), ForeColor = t.Text, Font = Theme.Body };
-        menu.Items.Add(Toggle("Start with Windows", TrayApp.StartsWithWindows, on => TrayApp.StartsWithWindows = on));
-        menu.Items.Add(Toggle("Start minimized to the tray", app.Settings.StartInTray, on =>
+        Option("Start with Windows", TrayApp.StartsWithWindows, on => TrayApp.StartsWithWindows = on);
+        Option("Start minimized to the tray", app.Settings.StartInTray, on =>
         {
             app.Settings.StartInTray = on;
             app.Save();
-        }));
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Choose game folder...", null, (_, _) => app.ChooseFolder(this));
-        menu.Items.Add("Open Sync's data folder", null, (_, _) =>
+        });
+        Line("Sync starts with only its tray icon. Click the icon to open this window.", color: t.TextMuted);
+        body.Controls.Add(new Panel { Height = 12, Width = 1, Margin = Padding.Empty });
+        body.Controls.Add(Rule());
+
+        LinkButton("Open Sync's data folder", () =>
         {
             var folder = Path.GetDirectoryName(Settings.DefaultPath)!;
             Directory.CreateDirectory(folder);
             Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
-        });
-        menu.Items.Add("Open Raid Hub", null, (_, _) => Process.Start(new ProcessStartInfo(TrayApp.SiteUrl) { UseShellExecute = true }));
-        menu.Items.Add(new ToolStripSeparator());
-        // Check for updates and What's new come with the installer (sync #5); Unlink with linking (sync #1).
-        menu.Items.Add(new ToolStripMenuItem($"Version {Application.ProductVersion.Split('+')[0]}") { Enabled = false });
-        foreach (ToolStripItem item in menu.Items) item.ForeColor = item.Enabled ? t.Text : t.TextMuted;
-        return menu;
+        }, top: 16);
+        LinkButton("Open Raid Hub", () => Process.Start(new ProcessStartInfo(TrayApp.SiteUrl) { UseShellExecute = true }));
     }
 
-    private static ToolStripMenuItem Toggle(string text, bool on, Action<bool> set)
+    private void Option(string text, bool on, Action<bool> set)
     {
-        var item = new ToolStripMenuItem(text) { Checked = on, CheckOnClick = true };
-        item.CheckedChanged += (_, _) => set(item.Checked);
-        return item;
+        var box = new CheckBox { Text = text, Checked = on, AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
+        box.CheckedChanged += (_, _) => set(box.Checked);
+        body.Controls.Add(box);
+    }
+
+    private void LinkButton(string text, Action click, int top = 0)
+    {
+        var button = new Button { Text = text, AutoSize = true, Margin = new Padding(0, top, 0, 8) };
+        Plain(button);
+        button.Click += (_, _) => click();
+        body.Controls.Add(button);
     }
 
     private void Line(string text, Font? font = null, Color? color = null, int top = 0) =>
@@ -248,15 +285,13 @@ public sealed class MainWindow : Form
         ? new Panel { Dock = DockStyle.Fill, BackColor = t.Border, Margin = Padding.Empty }
         : new Panel { Height = 1, Width = 560, BackColor = t.Border, Margin = Padding.Empty };
 
-    private void Plain(Button button, bool border = true)
+    private void Plain(Button button)
     {
         button.FlatStyle = FlatStyle.Flat;
         button.BackColor = t.Panel;
         button.ForeColor = t.Text;
         button.Cursor = Cursors.Hand;
-        // A borderless flat button still draws its border when focused, so give it the panel's color.
-        button.FlatAppearance.BorderColor = border ? t.BorderStrong : t.Panel;
-        button.FlatAppearance.BorderSize = border ? 1 : 0;
+        button.FlatAppearance.BorderColor = t.BorderStrong;
         button.FlatAppearance.MouseOverBackColor = t.NavSelected;
     }
 }
