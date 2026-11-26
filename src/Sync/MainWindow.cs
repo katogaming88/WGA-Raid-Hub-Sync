@@ -41,11 +41,20 @@ public sealed class MainWindow : Form
 
         var sidebar = new Panel { Dock = DockStyle.Fill, BackColor = t.Sidebar, Margin = Padding.Empty, Padding = new Padding(0, 16, 0, 0) };
         sidebar.Controls.Add(nav);
-        sidebar.Controls.Add(new Label
+        var brand = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(14, 0, 0, 0), WrapContents = false };
+        // Drawn down from 64 px so it stays sharp when Windows scales the window up.
+        using (var logo = Theme.Logo(new Size(64, 64)))
+            brand.Controls.Add(new PictureBox
+            {
+                Image = logo.ToBitmap(), SizeMode = PictureBoxSizeMode.Zoom,
+                Size = new Size(24, 24), Margin = new Padding(0, 0, 8, 0),
+            });
+        brand.Controls.Add(new Label
         {
             Text = "Raid Hub Sync", Font = Theme.Strong, ForeColor = t.Brand,
-            Dock = DockStyle.Top, Height = 40, Padding = new Padding(16, 0, 0, 0),
+            AutoSize = true, Margin = new Padding(0, 3, 0, 0),
         });
+        sidebar.Controls.Add(brand);
         layout.Controls.Add(sidebar, 0, 0);
         layout.Controls.Add(Rule(vertical: true), 1, 0);
 
