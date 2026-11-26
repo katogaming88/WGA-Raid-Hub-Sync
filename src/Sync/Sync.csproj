@@ -6,6 +6,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>WGA Raid Hub Sync</AssemblyName>
     <RootNamespace>Sync</RootNamespace>
+    <!-- Set by release-please on each release; never edit by hand. -->
+    <Version>0.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

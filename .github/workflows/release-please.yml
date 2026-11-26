@@ -1,0 +1,31 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # The release pull request is pushed with GITHUB_TOKEN, and GitHub never lets a
+      # GITHUB_TOKEN push start another workflow, so CI wouldn't run on it and its required
+      # Build and test check would never arrive. A workflow_dispatch is the one start
+      # GITHUB_TOKEN may make, so start CI on the release branch directly.
+      - name: Run CI on the release pull request
+        if: ${{ steps.release.outputs.pr }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+        run: gh workflow run ci.yml --repo "${{ github.repository }}" --ref "$BRANCH"

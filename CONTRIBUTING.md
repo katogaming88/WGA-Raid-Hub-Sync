@@ -39,10 +39,32 @@ start a fresh branch off `main`.
 Pull requests are squash-merged, so the title becomes the commit on `main`.
 Start every title with a Conventional Commit type (`feat:`, `fix:`, `docs:`,
 `chore:`, `refactor:`, `test:`, `ci:`), keep it under 72 characters, and
-write it as a line an officer would understand. Release notes will be built
-from these titles once releases exist (#5, the installer and
-auto-update). The body says why; the diff shows what. Link the issue with
-`Closes #NNN`.
+write it as a line an officer would understand: it becomes the line in
+`CHANGELOG.md` (see Releases). The body says why; the diff shows what. Link
+the issue with `Closes #NNN`.
+
+---
+
+## Releases
+
+[release-please](https://github.com/googleapis/release-please) writes
+`CHANGELOG.md` and the version. Never edit either by hand, and never push a
+tag.
+
+- After each merge to `main`, release-please opens or updates a **release
+  pull request** with the next version and the changelog lines so far.
+  `feat:` and `fix:` titles become lines; `docs:`, `chore:` and the rest
+  don't.
+- Below 1.0, a `feat:` moves to the next minor version (0.1.0 to 0.2.0) and
+  a `fix:` to the next patch (0.1.0 to 0.1.1).
+- Merging the release pull request tags `vX.Y.Z`, publishes a GitHub
+  release, and sets `<Version>` in `src/Sync/Sync.csproj`, which the window
+  shows. The installer and auto-update come with #5.
+- To pick a version yourself, put `Release-As: X.Y.Z` as a footer in a
+  commit on `main`.
+- The release pull request is pushed by GitHub Actions, which can't start CI
+  on its own, so `release-please.yml` starts the Build and test check on it.
+  Kat merges it like any other pull request.
 
 ---
 
