@@ -208,9 +208,9 @@ public sealed class MainWindow : Form
     {
         var menu = new ContextMenuStrip { Renderer = t.MenuRenderer(), ForeColor = t.Text, Font = Theme.Body };
         menu.Items.Add(Toggle("Start with Windows", TrayApp.StartsWithWindows, on => TrayApp.StartsWithWindows = on));
-        menu.Items.Add(Toggle("Open this window when Sync starts", app.Settings.OpenWindowOnStart, on =>
+        menu.Items.Add(Toggle("Start minimized to the tray", app.Settings.StartInTray, on =>
         {
-            app.Settings.OpenWindowOnStart = on;
+            app.Settings.StartInTray = on;
             app.Save();
         }));
         menu.Items.Add(new ToolStripSeparator());

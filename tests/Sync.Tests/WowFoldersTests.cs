@@ -81,7 +81,7 @@ public sealed class WowFoldersTests : IDisposable
         var path = Path.Combine(root, "old.json");
         File.WriteAllText(path, """{ "WowFolder": "C:\\x", "Accounts": [] }""");
         var loaded = Settings.Load(path);
-        Assert.True(loaded.OpenWindowOnStart);
+        Assert.False(loaded.StartInTray);
         Assert.False(loaded.TrayNoteShown);
     }
 

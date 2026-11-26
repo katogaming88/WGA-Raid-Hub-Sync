@@ -49,7 +49,7 @@ public sealed class TrayApp : ApplicationContext
         }
 
         // With nothing found, the saved folder and ticks are kept: the drive may just not be connected yet.
-        if (Settings.OpenWindowOnStart) OpenWindow();
+        if (!Settings.StartInTray) OpenWindow();
         else if (Folder is null)
             Note("Couldn't find World of Warcraft. Click this icon to open Sync and choose its folder.");
     }
