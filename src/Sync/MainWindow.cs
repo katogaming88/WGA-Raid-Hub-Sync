@@ -79,6 +79,8 @@ public sealed class MainWindow : Form
         layout.Controls.Add(main, 2, 0);
         Controls.Add(layout);
 
+        foreach (var name in Pages) nav.Controls.Add(NavButton(name));
+
         // Deferred: a tick's own CheckedChanged triggers this, and Render replaces that checkbox.
         Action changed = () => { if (IsHandleCreated) BeginInvoke(Render); };
         app.Changed += changed;
@@ -90,11 +92,14 @@ public sealed class MainWindow : Form
     private void Render()
     {
         SuspendLayout();
-        nav.Controls.Clear();
-        foreach (var name in Pages) nav.Controls.Add(NavButton(name));
+        foreach (Button button in nav.Controls) StyleNav(button);
 
         title.Text = page;
+        // The rebuilt page gets keyboard focus back on the same checkbox or button.
+        var focused = ActiveControl is ButtonBase b && body.Contains(b) ? b.Text : null;
+        var old = body.Controls.Cast<Control>().ToList();
         body.Controls.Clear();
+        old.ForEach(c => c.Dispose());
         switch (page)
         {
             case "Overview": Overview(); break;
@@ -103,26 +108,32 @@ public sealed class MainWindow : Form
             case "Uploads": Line("Each upload shows here with when it last ran and whether it worked: the addon's saved data, the loot history and the priority data for the game."); break;
             case "Activity": Line("Nothing yet. Every sync Sync runs is listed here, newest first."); break;
         }
+        body.Controls.OfType<ButtonBase>().FirstOrDefault(c => c.Text == focused)?.Focus();
         ResumeLayout();
     }
 
+    // Made once and restyled on each Render, so a click never disposes the button it came from.
     private Button NavButton(string name)
     {
-        var selected = name == page;
         var button = new Button
         {
             Text = name, TextAlign = ContentAlignment.MiddleLeft, Width = 200, Height = 36,
             Margin = Padding.Empty, Padding = new Padding(12, 0, 0, 0),
-            Font = selected ? Theme.Strong : Theme.Body,
-            BackColor = selected ? t.NavSelected : t.Sidebar,
-            ForeColor = selected ? t.Text : t.TextMuted,
             FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand,
-            AccessibleDescription = selected ? "Current page" : null,
         };
         button.FlatAppearance.BorderSize = 0;
         button.FlatAppearance.MouseOverBackColor = t.NavSelected;
         button.Click += (_, _) => { page = name; Render(); };
         return button;
+    }
+
+    private void StyleNav(Button button)
+    {
+        var selected = button.Text == page;
+        button.Font = selected ? Theme.Strong : Theme.Body;
+        button.BackColor = selected ? t.NavSelected : t.Sidebar;
+        button.ForeColor = selected ? t.Text : t.TextMuted;
+        button.AccessibleDescription = selected ? "Current page" : null;
     }
 
     private void Overview()
